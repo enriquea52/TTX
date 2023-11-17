@@ -1,3 +1,6 @@
+Use this link to access the Google Drive to download the packages: 
+https://drive.google.com/drive/folders/15CczYhMxquQuJYYAJIEPyaXP0t6Tzw13?usp=sharing
+
 # The Folder /Docker should contain  
 1- Dockerfile  
 2- ros_entrypoint.sh
