@@ -1,0 +1,129 @@
+Team: IFRos Team
+Captain: Alaaeddine El Masri El Chaarani
+Team Members: Jesus Enrique Aleman Gallegos - Muhammad Umar - Rahaf Abu Hara
+
+# Infrared Object Detection and Tracking Challenge
+
+Tools
+
+    In order to implement the solution for this challenge, the following tools were used:
+
+    A shared Google Drive folder to add all the required files and outcomes:
+        https://drive.google.com/drive/folders/1I9jShELhgtQTaxr8VDBXhpwvTsvVj3sL?usp=sharing
+    A Notion workspace to manage the team's tasks and decisions:
+        https://alkaline-principal-f80.notion.site/Details-For-Challenge-Implementation-4d5f3eb334ef4da5ac9aa7d007027619
+
+Working Process
+
+    The working process was divided into stages according to the competition requirements.
+
+    Stage 1:
+
+        a. Prepare the TII dataset for training.
+        b. Have a working model with a ROS node.
+        c. Add it to Docker to have a ready submission.
+
+        Details:
+        a. To prepare the TII dataset, we used the JSON file provided and rearranged the dataset format to meet the training requirements, as the annotations provided with the dataset had both the detection and the tracker ground truth listed. To do so, we created our own annotation categories and converted the provided annotations to the required training format.
+        b. To train the model, we used YoloV8 Nano and rented an online computer to train it. Once we had the model trained for 58 epochs, we then started developing the ROS node.
+        c. The ROS node's task was to subscribe to the topic "/flir_boson/image_raw" and provide real-time detection.
+        d. A team member concurrently dockerized this code, so we had a base to improve and update and get ready for submission.
+
+    Stage 2:
+
+        Improve the submission by adding a tracker to the ROS node and increasing the base dataset size by merging more datasets to the TII dataset.
+            a. With the previous tasks achieved, a team member started working on adding the tracker to the ROS node.
+            b. In parallel, two other team members prepared more data to add to the training. In this process, we increased the dataset from 15,000 images to 58,000 images (including four datasets) and the categories from 10 to 21. Then we trained the YoloV8 medium-size architecture, as it was enough to handle a 20-class model. (We tested the x-large YoloV8 architecture, but the inference time was not convenient. Taking into consideration that the required classes are only 21, we decided to use the medium-sized version of YoloV8 from Ultralytics.)
+        (Note: In this stage, having a good tracker with good inference time was very hard. We implemented DeepSORT and OCSORT. The result of the OCSORT was better than DeepSORT, but it was challenging to add the OCSORT to the Docker, as this tracker required some dependencies that use the GPU.)
+
+    Stage 3:
+
+        Add the final model with the tracker to the Docker and test the inference time on the devices.
+        This stage relied on the previous stages, as the model we used could affect the Docker image dependencies. For testing, we tested on the Jetson NX Xavier and Jetson AGX. The detection model worked fine, while the main problem was adding a good tracker to the solution.
+
+Running the Code:
+
+    The code is meant to have two options to execute:
+    RosNode:
+        This ROS node runs on ROS Noetic and uses the packages cv_bridge, rospy, sensor_msgs, and std_msgs. It requires the OpenCV library to display images.
+        For the YoloDetector, it requires Ultralytics, which can be installed using pip install ultralytics.
+        For Json file output, This process requires a skeleton  file. We have prepared a JSON file and saved it in ${rospack tii_detector}/src/output under the name output.json.
+        If the Json file is not found the code will generate one 
+
+
+        To run the code, you can:
+            a. Use the default ROS topic that publishes infrared images and process them like /flir_boson/image_raw (default).
+            b. Run the help argument by using rosrun tii_detector YoloV8_detector_jetson_v2.py -h to display the possible input arguments.
+            c. Use the default settings which have the following:
+                -s or --subscribe: /flir_boson/image_raw (adds another topic to subscribe to it)
+                -j or --json-update: ON (note that JSON updates require having the ${find ROS-PACKAGE}/src/output/output.json file to update the JSON)
+                -d or --detector_publish: OFF (the following topic will publish at /ir_prediction_result)
+                -t or --tracker_publish: OFF (the following topic will publish at /ir_tracker_result)
+            d. To change the options, you can pass an argument using the short or long phrase. For example:
+                    rosrun tii_detector YoloV8_detector_jetson_v2.py -s "/flir_boson/image_raw" -j t -t t -d t 
+                or 
+                    rosrun tii_detector YoloV8_detector_jetson_v2.py --subscribe "/flir_boson/image_raw" --json_update true --tracker_publish true --detector_publish true 
+
+    Python Script:
+        This script runs using Python 3.8 and requires OpenCV for display.
+        The YoloDetector requires Ultralytics, which can be installed using "pip install ultralytics".
+        For Json file output, This process requires a skeleton  file. We have prepared a JSON file and saved it in ${rospack tii_detector}/src/output under the name output.json.
+        If the Json file is not found the code will generate one 
+ 
+
+        To run the code, you can:
+            a. The code should be run from its directory as it uses the current path to navigate to the "data" directory, weights, and "output.json" file by default. The code will check all images in a directory, sort them, and process them in the default directory: "${current_path}/data".
+            b. Running the help argument "python3 YoloV8_python.py -h" will display the possible input arguments.
+            c. The default settings are:
+                -i or --input_path : "./data" (add another path to navigate to it)
+                -j or --json_update: ON (note that JSON update requires an existing "./output/output.json" file to update the JSON)
+                -d or --detector_publish: OFF (displays a window using OpenCV with the name "Yolo" to show the bounding box of the Yolo model)
+                -t or --tracker_publish: OFF (displays a window using OpenCV with the name "tracker" to show the bounding box of the tracker)
+            d. To change the options, you can pass an argument using the short or long open phrase:
+                example: "python3 YoloV8_python.py -i "./data" -j t -t t -d t"
+                or
+                "python3 YoloV8_python.py --input_path "./data" --json_update true --tracker_publish true --detector_publish true"
+
+Expected Results: 
+    Yolo Detection Model :  
+        The Yolo Detection model usis the YoloV8 medium architecture size, which is about 70 mb. The model is trained on 58 K images from Five different data sets. 
+        The model can identify 21 Classes which are distributed in 12 supercategories, This is the category formulation:  
+        
+            - # -supercategory → name → # 
+            - 1 -Person → person → #
+            - 2 -Car → car → #
+            - 3 -Motorcyclist → motorcyclist → #
+            - 4 -Bus → smallbus → #
+            - 5 -Bus → bus → #
+            - 6 -Other_vehicle → truck → #
+            - 7 -Other_vehicle → utilitytruck → #
+            - 8 -Offroad_Vehicle → buggy → #
+            - 9 -Offroad_Vehicle → ATV → #
+            - 10-Person → ATV_driver → #
+            - 11-Bike → bike→ #
+            - 12-Other_Vehicle→train→#
+            - 13-Other_Vehicle→other_vehicle→#
+            - 14-Utilities→sign→#
+            - 15-Utilities→hydrant→#
+            - 16-Utilities→light→#
+            - 17-Person→skateboard→#
+            - 18-Person→scooter→#
+            - 19-Person→stroller→#
+            - 20-Animal→dog→ #
+            - 21-Animal→cat→ #
+        We can say the Yolo detection have a good results
+
+    Tracker Deep OC sort:
+        This had the highest performance for multiple years , it is integrated to the code. For the tracker we used this following huperparameters:  
+            det_thresh = 0.75
+            max_age = 100
+            iou_threshold = 0.1
+            min_hits = 8
+            asso_func = "iou"
+            delta_t = 1
+            inertia = 0.9
+
+        The performance of the Tracker is accaptable, still this trackers are implemented to be used with static cameras.
+        For this application the camera frame is dynamic. This intreduce another factor on the estimation which is the camera position. 
+        Due to this factor, we reach a conclusion: To improve the tracker we need to integrate the odomatry of the robot to stabilize the tracker predictions 
+        Due to time constraints, this modification  was not possible. 
